@@ -6,7 +6,7 @@ import {
   Printer, 
   TrendingUp, 
   Star, 
-  ShieldAlert, 
+  ShieldCheck, 
   CheckCircle2, 
   ExternalLink, 
   Copy, 
@@ -15,7 +15,8 @@ import {
   MessageSquare,
   Check,
   Tag,
-  Share2
+  Share2,
+  HeartHandshake
 } from 'lucide-react';
 import { store } from '../lib/store';
 import { Business, DashboardStats, PrivateFeedback, BusinessCategory } from '../types';
@@ -138,6 +139,9 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-xs font-semibold uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
                   {business.category}
                 </span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> FTC Compliant
+                </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-mono">
                 <span>NFC Tag Endpoint:</span>
@@ -208,7 +212,7 @@ export const DashboardPage: React.FC = () => {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            <span>Intercepted Feedback</span>
+            <span>Direct Feedback Inbox</span>
             {feedbacks.filter(f => f.status === 'new').length > 0 && (
               <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
                 {feedbacks.filter(f => f.status === 'new').length}
@@ -261,7 +265,7 @@ export const DashboardPage: React.FC = () => {
                     {stats?.googleRedirects || 0}
                   </p>
                   <span className="text-[11px] font-semibold text-slate-500 mt-1 block">
-                    {stats?.conversionRate}% tap conversion rate
+                    {stats?.conversionRate}% tap-to-review rate
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -269,21 +273,21 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Intercepted Negative Reviews */}
+              {/* Direct Feedback Captured */}
               <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Negative Intercepted
+                    Direct Feedback Inquiries
                   </p>
-                  <p className="text-3xl font-black text-amber-600 mt-1">
+                  <p className="text-3xl font-black text-indigo-600 mt-1">
                     {stats?.privateFeedbacks || 0}
                   </p>
                   <span className="text-[11px] font-semibold text-slate-500 mt-1 block">
-                    Prevented public 1-3★ reviews
+                    Direct customer resolutions
                   </span>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <ShieldAlert className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <HeartHandshake className="w-6 h-6" />
                 </div>
               </div>
 
@@ -309,61 +313,60 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* How ReviewFlow Works Diagram */}
-            <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl">
+            {/* Compliance & Workflow Architecture Callout */}
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl">
               <div className="max-w-2xl">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-indigo-300">
-                  Automated Review Acceleration
+                <span className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" /> FTC & Google Review Policy Compliant
                 </span>
                 <h3 className="text-2xl font-black mt-1 mb-3">
-                  How ReviewFlow 10x's Your Google Reviews
+                  Ethical Review Acceleration
                 </h3>
-                <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed mb-6">
-                  Customers tap their phone against your NFC counter stand or scan the QR code.
-                  Our randomized template engine creates an authentic, glowing review based on their favourite highlights in 1 tap, eliminating writer’s block!
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-6">
+                  ReviewFlow gives every customer the unrestricted right to leave an honest Google review. For customers with constructive or critical feedback, a direct-to-owner resolution channel is highlighted prominently alongside the public Google link, enabling you to resolve issues proactively without review manipulation.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-indigo-700/60">
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-800">
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="text-indigo-300 font-bold text-xs mb-1">Step 1: 15-Sec Tap</div>
-                  <p className="text-xs text-indigo-100">Customer taps NFC card at register, counter, or table tent.</p>
+                  <p className="text-xs text-slate-300">Customer taps NFC card at register, counter, or table tent.</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                  <div className="text-indigo-300 font-bold text-xs mb-1">Step 2: Template Engine</div>
-                  <p className="text-xs text-indigo-100">Customer selects highlights. Natural review options are generated instantly.</p>
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="text-indigo-300 font-bold text-xs mb-1">Step 2: Template Synthesis</div>
+                  <p className="text-xs text-slate-300">Customer selects highlights. Natural review options are generated instantly.</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="text-indigo-300 font-bold text-xs mb-1">Step 3: Direct to Google</div>
-                  <p className="text-xs text-indigo-100">Copied to clipboard and redirects right to your Google review box.</p>
+                  <p className="text-xs text-slate-300">Copied to clipboard and redirects directly to your Google review dialog.</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: INTERCEPTED PRIVATE FEEDBACK */}
+        {/* TAB 2: DIRECT PRIVATE FEEDBACK */}
         {activeTab === 'feedback' && (
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
-                  Intercepted Negative Reviews (1-3 Stars)
+                  Direct Customer Feedback & Resolution Inbox
                 </h2>
                 <p className="text-xs text-slate-500">
-                  These unhappy customers were intercepted before posting publicly on Google, giving you a chance to recover the relationship.
+                  Customers who submitted direct messages to management for fast resolution.
                 </p>
               </div>
               <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-full self-start">
-                {feedbacks.length} total captured
+                {feedbacks.length} messages received
               </span>
             </div>
 
             {feedbacks.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
-                <ShieldAlert className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold text-slate-600">No negative feedback recorded</p>
-                <p className="text-xs text-slate-400 mt-1">All customer ratings have met your 4-5 star threshold!</p>
+                <HeartHandshake className="w-12 h-12 mx-auto mb-3 opacity-40 text-indigo-500" />
+                <p className="text-sm font-semibold text-slate-600">No direct feedback messages yet</p>
+                <p className="text-xs text-slate-400 mt-1">When customers submit private feedback via their tap page, it will appear here.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -384,7 +387,7 @@ export const DashboardPage: React.FC = () => {
                           ))}
                         </div>
                         <span className="text-xs font-bold text-slate-900">
-                          {item.customer_name || 'Anonymous Customer'}
+                          {item.customer_name || 'Customer'}
                         </span>
                         {(item.customer_email || item.customer_phone) && (
                           <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">

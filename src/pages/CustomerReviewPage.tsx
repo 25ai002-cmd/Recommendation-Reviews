@@ -33,7 +33,8 @@ export const CustomerReviewPage: React.FC = () => {
   const [customizedReviewText, setCustomizedReviewText] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Private Feedback State (1-3 stars)
+  // Direct Private Feedback Option (Available for all ratings, highlighted for 1-3 stars)
+  const [showPrivateForm, setShowPrivateForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -50,7 +51,6 @@ export const CustomerReviewPage: React.FC = () => {
         setBusiness(biz);
         const tags = store.getTagsForCategory(biz.category);
         setAvailableTags(tags);
-        // Pre-select the first 2 tags as friendly defaults
         setSelectedTags(tags.slice(0, 2));
 
         // Log scan event
@@ -65,17 +65,23 @@ export const CustomerReviewPage: React.FC = () => {
     load();
   }, [slug]);
 
-  // Regenerate suggestions whenever selected tags change
+  // Update suggestions and feedback mode based on rating
   useEffect(() => {
-    if (business && rating && rating >= (business.min_rating_for_google || 4)) {
-      const suggestions = generateReviewSuggestions({
-        businessName: business.name,
-        category: business.category,
-        selectedTags: selectedTags
-      });
-      setSuggestedReviews(suggestions);
-      if (suggestions.length > 0) {
-        setCustomizedReviewText(suggestions[activeSuggestionIndex]?.text || suggestions[0].text);
+    if (business && rating) {
+      if (rating >= 4) {
+        setShowPrivateForm(false);
+        const suggestions = generateReviewSuggestions({
+          businessName: business.name,
+          category: business.category,
+          selectedTags: selectedTags
+        });
+        setSuggestedReviews(suggestions);
+        if (suggestions.length > 0) {
+          setCustomizedReviewText(suggestions[activeSuggestionIndex]?.text || suggestions[0].text);
+        }
+      } else {
+        // For 1-3 stars, default to showing the private resolution form, but NEVER block Google review link
+        setShowPrivateForm(true);
       }
     }
   }, [business, rating, selectedTags]);
@@ -109,18 +115,12 @@ export const CustomerReviewPage: React.FC = () => {
   const handleCopyToGoogle = () => {
     if (!business) return;
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(customizedReviewText);
-    setCopied(true);
+    if (customizedReviewText) {
+      navigator.clipboard.writeText(customizedReviewText);
+      setCopied(true);
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    }
 
-    // Fire joyful confetti animation
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-
-    // Log analytics
     store.logScanEvent({
       business_id: business.id,
       rating_selected: rating,
@@ -129,20 +129,30 @@ export const CustomerReviewPage: React.FC = () => {
       device_type: 'mobile'
     });
 
-    // Automatically open Google Review link in new tab after 400ms
     setTimeout(() => {
       window.open(business.google_review_url, '_blank', 'noopener,noreferrer');
     }, 400);
   };
 
+  const handleDirectGoogleLink = () => {
+    if (!business) return;
+    store.logScanEvent({
+      business_id: business.id,
+      rating_selected: rating,
+      action_type: 'redirect_google',
+      device_type: 'mobile'
+    });
+    window.open(business.google_review_url, '_blank', 'noopener,noreferrer');
+  };
+
   const handlePrivateFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!business || !rating) return;
+    if (!business) return;
     setSubmittingFeedback(true);
 
     await store.submitPrivateFeedback({
       business_id: business.id,
-      rating,
+      rating: rating || 3,
       customer_name: customerName,
       customer_email: customerEmail,
       customer_phone: customerPhone,
@@ -191,8 +201,7 @@ export const CustomerReviewPage: React.FC = () => {
     );
   }
 
-  const isPositive = rating !== null && rating >= (business.min_rating_for_google || 4);
-  const isNegative = rating !== null && rating < (business.min_rating_for_google || 4);
+  const isLowRating = rating !== null && rating <= 3;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50/40 via-white to-slate-50 flex flex-col items-center justify-start p-4 sm:p-6">
@@ -222,10 +231,10 @@ export const CustomerReviewPage: React.FC = () => {
           </p>
         </div>
 
-        {/* STEP 1: Star Rating */}
+        {/* Rating Selector */}
         <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60 mb-6 text-center">
           <p className="text-xs uppercase font-bold tracking-wider text-slate-400 mb-2">
-            Tap a rating
+            Tap a star rating
           </p>
           <StarRating
             value={rating || 0}
@@ -237,13 +246,114 @@ export const CustomerReviewPage: React.FC = () => {
               {rating === 5 && '🌟 Exceptional! Thank you!'}
               {rating === 4 && '👍 Great! Glad you enjoyed it!'}
               {rating === 3 && '😐 Average — We want to improve.'}
-              {rating <= 2 && '😟 Not happy? Let us make it right.'}
+              {rating <= 2 && '😟 Not happy? Tell us directly how we can make it right.'}
             </p>
           )}
         </div>
 
-        {/* STEP 2A: POSITIVE FLOW (4-5 STARS) -> Suggestion Engine & Google Review */}
-        {isPositive && (
+        {/* RATING 1-3 STARS: Show Direct Resolution + Google Option (Google-Compliant, No Gating) */}
+        {isLowRating && (
+          <div className="space-y-5 animate-fadeIn">
+            {feedbackSubmitted ? (
+              <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
+                <ThumbsUp className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                <h3 className="font-bold text-emerald-950 text-base mb-1">
+                  Thank You for Your Feedback
+                </h3>
+                <p className="text-xs text-emerald-800 leading-relaxed mb-4">
+                  Your comments have been sent directly to management. We appreciate the opportunity to make this right with you!
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDirectGoogleLink}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 underline font-medium"
+                >
+                  <span>Still wish to post publicly on Google Reviews?</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <form onSubmit={handlePrivateFeedbackSubmit} className="space-y-4">
+                  <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200/80 flex items-start gap-2.5">
+                    <MessageSquare className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      We're sorry we didn't meet your expectations. Send your comments straight to our management so we can resolve this right away.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      What could we have done better? *
+                    </label>
+                    <textarea
+                      required
+                      value={feedbackMessage}
+                      onChange={(e) => setFeedbackMessage(e.target.value)}
+                      rows={3}
+                      placeholder="Tell us what went wrong..."
+                      className="w-full text-xs text-slate-800 p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Your Name
+                      </label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="e.g. Alex"
+                        className="w-full text-xs text-slate-800 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Email or Phone
+                      </label>
+                      <input
+                        type="text"
+                        value={customerEmail || customerPhone}
+                        onChange={(e) => {
+                          setCustomerEmail(e.target.value);
+                          setCustomerPhone(e.target.value);
+                        }}
+                        placeholder="To follow up with you"
+                        className="w-full text-xs text-slate-800 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingFeedback}
+                    className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{submittingFeedback ? 'Sending...' : 'Send Message Straight to Owner'}</span>
+                  </button>
+                </form>
+
+                {/* Transparent Google Review Option (Google & FTC Compliance) */}
+                <div className="pt-4 border-t border-slate-100 mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handleDirectGoogleLink}
+                    className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 transition-colors font-medium"
+                  >
+                    <span>Or post an honest public review directly on Google</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RATING 4-5 STARS OR DEFAULT: Suggestion Engine + Google Review */}
+        {(!rating || rating >= 4) && (
           <div className="space-y-6 animate-fadeIn">
             {/* Tag Selection Chips */}
             <div>
@@ -325,7 +435,7 @@ export const CustomerReviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Big Action: Copy & Open Google Review */}
+            {/* Action: Copy & Open Google Review */}
             <div className="space-y-3 pt-2">
               <button
                 type="button"
@@ -346,86 +456,36 @@ export const CustomerReviewPage: React.FC = () => {
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 text-center">
-                <span>1-Tap: Copies the review text & opens the Google rating box directly!</span>
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                <span>1-Tap: Copies review & opens Google Review page</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPrivateForm(!showPrivateForm)}
+                  className="text-indigo-600 hover:text-indigo-800 font-semibold underline"
+                >
+                  Send private note instead
+                </button>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* STEP 2B: NEGATIVE FLOW (1-3 STARS) -> Private Feedback Capture */}
-        {isNegative && (
-          <div className="animate-fadeIn">
-            {feedbackSubmitted ? (
-              <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
-                <ThumbsUp className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
-                <h3 className="font-bold text-emerald-950 text-base mb-1">
-                  Thank You for Your Feedback
-                </h3>
-                <p className="text-xs text-emerald-800 leading-relaxed">
-                  Your comments have been sent directly to the owner and management of <strong>{business.name}</strong>. We appreciate the opportunity to make this right!
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handlePrivateFeedbackSubmit} className="space-y-4">
-                <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200/80 flex items-start gap-2.5">
-                  <MessageSquare className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-900 leading-relaxed">
-                    We are truly sorry we didn’t meet your expectations. Please send your comments straight to our management so we can address it immediately.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    What could we have done better? *
-                  </label>
-                  <textarea
-                    required
-                    value={feedbackMessage}
-                    onChange={(e) => setFeedbackMessage(e.target.value)}
-                    rows={3}
-                    placeholder="Tell us what went wrong..."
-                    className="w-full text-xs text-slate-800 p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="e.g. Alex"
-                      className="w-full text-xs text-slate-800 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Email or Phone
-                    </label>
-                    <input
-                      type="text"
-                      value={customerEmail || customerPhone}
-                      onChange={(e) => {
-                        setCustomerEmail(e.target.value);
-                        setCustomerPhone(e.target.value);
-                      }}
-                      placeholder="To follow up with you"
-                      className="w-full text-xs text-slate-800 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-
+            {/* Optional private feedback form if opened */}
+            {showPrivateForm && (
+              <form onSubmit={handlePrivateFeedbackSubmit} className="pt-4 border-t border-slate-200 space-y-3">
+                <p className="text-xs font-bold text-slate-700">Private Message to Owner</p>
+                <textarea
+                  required
+                  value={feedbackMessage}
+                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                  rows={2}
+                  placeholder="Tell the owner anything privately..."
+                  className="w-full text-xs text-slate-800 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
                 <button
                   type="submit"
                   disabled={submittingFeedback}
-                  className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{submittingFeedback ? 'Sending...' : 'Send Private Feedback to Owner'}</span>
+                  {submittingFeedback ? 'Sending...' : 'Send Private Note'}
                 </button>
               </form>
             )}
@@ -439,7 +499,7 @@ export const CustomerReviewPage: React.FC = () => {
         <Link to="/" className="font-semibold text-slate-600 hover:text-indigo-600 underline">
           ReviewFlow
         </Link>{' '}
-        — NFC Customer Experience System
+        — FTC & Google Policy Compliant Review Platform
       </div>
     </div>
   );
